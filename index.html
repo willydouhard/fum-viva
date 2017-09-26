@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Viva Graph</title>
+    <script src="./dist/vivagraph.min.js"></script>
+
+    <style type='text/css'>
+    /* Graph CSS */
+    body,
+    svg {
+        height: 100%;
+        width: 100%;
+        position: absolute;
+        overflow: hidden;
+        margin: 0px;
+    }
+
+    /* Side Bar CSS */
+    #sideBar {
+        position: fixed;
+        right: 0;
+        top: 0;
+        z-index: 1;
+
+        overflow: auto;
+        height: 200px;
+        max-height: 100%;
+        width: 400px;
+        background: red;
+
+        transform: translateY(-100%);
+    }
+
+    #sideBar form {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        box-sizing: border-box;
+        padding: 10px;
+    }
+
+    #sideBar form input, textarea {
+        margin: 30px;
+    }
+
+    #sideBar form input[type=submit] {
+        margin-top: auto;
+    }
+    </style>
+</head>
+
+<body>
+
+    <!-- Side Bar HTML -->
+    <section id="sideBar">
+        <form>
+            <!-- !Data related -->
+            <input type="text" id="name" pattern=".{1,}" required autocomplete="off"/>
+            <input type="submit" value="Update node"/>
+        </form>
+    </section>
+
+    <!-- Side Bar JS -->
+    <script>
+
+    let animationPlayer = undefined;
+    let opened = false;
+
+    // Retrieve DOM elements
+    const sideBar = document.querySelector('#sideBar');
+    const form = sideBar.querySelector('form');
+
+    // !Data related
+    const nameInput = form.querySelector('#name');
+
+    // This will contain the node reference we want to update
+    let currentNode = undefined;
+
+    // Listening form's submit event
+    form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        if (validateForm()) {
+            updateNode();
+            toggleSideBar(false);
+        }
+    })
+
+    // Listening for outside clicks to close the side bar
+    document.body.addEventListener('click', (e) => {
+        if(!~e.path.indexOf(sideBar) && opened && e.target.tagName !== 'circle') toggleSideBar(false);
+    })
+
+    const updateNode = () => {
+        // !Data related
+        currentNode.name = nameInput.value;
+    }
+
+    const toggleSideBar = (state) => {
+        if(state === opened) return;
+
+        const start = state ? '-100%' : '0%';
+        const end = state ? '0%' : '-100%';
+        const frames = [
+            {transform: `translateY(${start})`},
+            {transform: `translateY(${end})`}
+        ];
+        const opts = {
+            easing: 'ease',
+            duration: 300,
+            fill: 'both'
+        };
+        animationPlayer = sideBar.animate(frames, opts);
+        animationPlayer.onfinish = () => {
+            opened = state;
+            if(opened) form.children[0].focus();
+        }
+    }
+
+    const fillForm = (data) => {
+        // !Data related
+        currentNode = data;
+        nameInput.value = data.name;
+    }
+
+    const validateForm = () => {
+        // !Data related
+        return nameInput.checkValidity();
+    }
+    </script>
+
+    <!-- Graph JS -->
+    <script>
+    // Hardcoding the data for demo purpose
+    const data = {
+        nodes: [
+            {
+                id: 1,
+                name: "Node 1",
+                edges: [2, 3]
+            },
+            {
+                id: 2,
+                name: "Node 2",
+                edges: [1, 4]
+            },
+            {
+                id: 3,
+                name: "Node 3",
+                edges: [1, 4]
+            },
+            {
+                id: 4,
+                name: "Node 4",
+                edges: [2, 3]
+            }
+        ]
+    }
+
+    // Instanciate Graph
+    const graph = Viva.Graph.graph();
+    // Populate Graph
+    for(let node of data.nodes){
+        // !Data related
+        graph.addNode(node.id, {node})
+        for(let edge of node.edges){
+            graph.addLink(node.id, edge)
+        }
+    }
+
+    // Tell VivaGraph to use SVG for rendering
+    const graphics = Viva.Graph.View.svgGraphics();
+
+    // Customizing node graphics and adding event listener
+    graphics.node( (node) => {
+        const circle = Viva.Graph.svg('circle')
+        .attr('r', 7)
+        .attr('stroke', '#fff')
+        .attr('stroke-width', '1.5px')
+        .attr("fill", "#000");
+
+        circle.addEventListener('click', (e) => {
+            fillForm(node.data.node);
+            toggleSideBar(true);
+        });
+        return circle;
+    }).placeNode( (nodeUI, pos) => {
+        nodeUI.attr( "cx", pos.x).attr("cy", pos.y);
+    });
+
+    // Render
+    const renderer = Viva.Graph.View.renderer(graph, {graphics});
+    renderer.run();
+    </script>
+</body>
+
+</html>
